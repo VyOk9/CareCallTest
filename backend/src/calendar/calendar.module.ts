@@ -4,8 +4,8 @@ import { CalendarService } from "./calendar.service";
 import { GoogleModule } from "../google/google.module";
 
 @Module({
-  imports: [GoogleModule],
+  imports: [GoogleModule],          // ✅ pour GoogleService
   controllers: [CalendarController],
-  providers: [CalendarService],
+  providers: [CalendarService],     // ✅ indispensable
 })
 export class CalendarModule {}

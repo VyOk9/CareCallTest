@@ -1,64 +1,48 @@
-import { Controller, Get, Post, Patch, Param, Body } from "@nestjs/common";
-import { GoogleService } from "../google/google.service";
+import { Body, Controller, Get, Param, Patch, Post, Req } from "@nestjs/common";
+import { Request } from "express";
+import { CalendarService } from "./calendar.service";
+import { CreateEventDto } from "./dto/create-event.dto";
+import { UpdateEventDto } from "./dto/update-event.dto";
+import { SessionStore } from "../google/google.service";
+
+type ReqWithSession = Request & { session: SessionStore };
 
 @Controller("calendar")
 export class CalendarController {
-  constructor(private readonly google: GoogleService) {}
+  constructor(private readonly calendar: CalendarService) {}
 
   @Get("events")
-  async events() {
-    return this.google.listUpcomingEvents();
+  list(@Req() req: ReqWithSession) {
+    return this.calendar.list(req.session);
   }
 
   @Post("events")
-  async create(@Body() body: {
-    summary: string;
-    description?: string;
-    location?: string;
-    startIso: string;
-    endIso: string;
-  }) {
-    return this.google.createEvent(body);
+  create(@Req() req: ReqWithSession, @Body() body: CreateEventDto) {
+    return this.calendar.create(req.session, body);
   }
 
   @Patch("events/:id")
-  async update(
-    @Param("id") id: string,
-    @Body() body: {
-      summary?: string;
-      description?: string;
-      location?: string;
-      startIso?: string;
-      endIso?: string;
-    }
-  ) {
-    return this.google.updateEvent(id, body);
+  update(@Req() req: ReqWithSession, @Param("id") id: string, @Body() body: UpdateEventDto) {
+    return this.calendar.update(req.session, id, body);
   }
 
-  // ✅ Ajouts "quasi temps réel"
   @Get("sync/init")
-  async initSync() {
-    return this.google.initSync();
+  initSync(@Req() req: ReqWithSession) {
+    return this.calendar.initSync(req.session);
   }
 
   @Get("sync/changes")
-  async changes() {
-    return this.google.syncChanges();
-  }
-
-  @Post("logout")
-  logout() {
-    this.google.logout();
-    return { ok: true };
+  syncChanges(@Req() req: ReqWithSession) {
+    return this.calendar.syncChanges(req.session);
   }
 
   @Get("status")
-  status() {
-    return {
-      connected: this.google.isConnected(),
-      mode: this.google.getMode(),
-    };
+  status(@Req() req: ReqWithSession) {
+    return this.calendar.status(req.session);
   }
 
-
+  @Post("logout")
+  logout(@Req() req: ReqWithSession) {
+    return this.calendar.logout(req.session);
+  }
 }

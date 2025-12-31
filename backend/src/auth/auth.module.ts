@@ -1,11 +1,11 @@
 import { Module } from "@nestjs/common";
-import { AuthController } from "./auth.controller";
+import { AuthGoogleController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { GoogleModule } from "../google/google.module";
 
 @Module({
-  imports: [GoogleModule],
-  controllers: [AuthController],
+  imports: [GoogleModule], // pour injecter GoogleService
+  controllers: [AuthGoogleController],
   providers: [AuthService],
 })
 export class AuthModule {}

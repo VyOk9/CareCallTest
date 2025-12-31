@@ -1,25 +1,28 @@
 import {
   BadGatewayException,
+  BadRequestException,
   ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
 
-type Mode = "read" | "write";
+export type Mode = "read" | "write";
 
-type TokenStore = {
+export type TokenStore = {
   mode: Mode;
   access_token: string;
   refresh_token?: string;
   expiry_date?: number; // epoch ms
 };
 
+export type SessionStore = {
+  tokens?: TokenStore;
+  syncToken?: string | null;
+};
+
 @Injectable()
 export class GoogleService {
-  private tokens: TokenStore | null = null;
   private refreshing: Promise<void> | null = null;
-  private syncToken: string | null = null;
-
 
   private get env() {
     const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -36,19 +39,20 @@ export class GoogleService {
     return { clientId, clientSecret, redirectUri, scopeWrite, scopeRead };
   }
 
-  private ensureConnected() {
-    if (!this.tokens) throw new UnauthorizedException("Pas de tokens. Connecte-toi d'abord.");
-    return this.tokens;
+  private ensureConnected(store: SessionStore) {
+    if (!store.tokens) throw new UnauthorizedException("Pas de tokens. Connecte-toi d'abord.");
+    return store.tokens;
   }
 
-  private requireWrite() {
-    const t = this.ensureConnected();
-    if (t.mode !== "write") throw new ForbiddenException("Accès insuffisant: reconnecte-toi en mode ÉCRITURE.");
+  private requireWrite(store: SessionStore) {
+    const t = this.ensureConnected(store);
+    if (t.mode !== "write") {
+      throw new ForbiddenException("Accès insuffisant: reconnecte-toi en mode ÉCRITURE.");
+    }
     return t;
   }
 
-  private isExpiredSoon() {
-    const t = this.ensureConnected();
+  private isExpiredSoon(t: TokenStore) {
     if (!t.expiry_date) return true;
     return Date.now() > t.expiry_date - 60_000;
   }
@@ -56,11 +60,15 @@ export class GoogleService {
   private async googleFetch(url: string, init?: RequestInit) {
     const res = await fetch(url, init);
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new BadGatewayException(data);
+    if (!res.ok) {
+      throw new BadGatewayException({ url, status: res.status, google: data });
+    }
     return data as any;
   }
 
-  async exchangeCode(code: string, mode: Mode) {
+  /* ================== OAUTH ================== */
+
+  async exchangeCode(store: SessionStore, code: string, mode: Mode) {
     const { clientId, clientSecret, redirectUri } = this.env;
 
     const body = new URLSearchParams({
@@ -77,27 +85,30 @@ export class GoogleService {
       body,
     });
 
-    this.tokens = {
+    store.tokens = {
       mode,
       access_token: data.access_token,
       refresh_token: data.refresh_token,
       expiry_date: Date.now() + (data.expires_in ?? 3600) * 1000,
     };
 
+    // reset sync à la reconnexion
+    store.syncToken = null;
+
     return {
-      ok: true,
+      ok: true as const,
       mode,
       hasRefreshToken: Boolean(data.refresh_token),
       expiresIn: data.expires_in ?? 3600,
     };
   }
 
-  async refreshIfNeeded() {
-    const t = this.ensureConnected();
-    if (!this.isExpiredSoon()) return;
+  async refreshIfNeeded(store: SessionStore) {
+    const t = this.ensureConnected(store);
+    if (!this.isExpiredSoon(t)) return;
 
     if (!t.refresh_token) {
-      throw new Error("Token expiré et pas de refresh_token (relogin nécessaire).");
+      throw new UnauthorizedException("Session expirée: reconnecte-toi (refresh_token manquant).");
     }
 
     if (this.refreshing) {
@@ -121,8 +132,14 @@ export class GoogleService {
         body,
       });
 
-      const data: any = await res.json();
-      if (!res.ok) throw new Error(`Refresh error: ${JSON.stringify(data)}`);
+      const data: any = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new UnauthorizedException({
+          message: "Refresh token invalide/expiré: reconnecte-toi.",
+          google: data,
+          status: res.status,
+        });
+      }
 
       t.access_token = data.access_token;
       t.expiry_date = Date.now() + (data.expires_in ?? 3600) * 1000;
@@ -135,10 +152,23 @@ export class GoogleService {
     }
   }
 
+  /* ================== STATUS ================== */
 
-  async listUpcomingEvents() {
-    const t = this.ensureConnected();
-    await this.refreshIfNeeded();
+  getStatus(store: SessionStore) {
+    return { connected: Boolean(store.tokens?.access_token), mode: store.tokens?.mode ?? null };
+  }
+
+  logout(store: SessionStore) {
+    store.tokens = undefined;
+    store.syncToken = null;
+    return { ok: true };
+  }
+
+  /* ================== EVENTS ================== */
+
+  async listUpcomingEvents(store: SessionStore) {
+    const t = this.ensureConnected(store);
+    await this.refreshIfNeeded(store);
 
     const timeMin = new Date().toISOString();
     const url =
@@ -150,15 +180,12 @@ export class GoogleService {
     });
   }
 
-  async createEvent(event: {
-    summary: string;
-    description?: string;
-    location?: string;
-    startIso: string;
-    endIso: string;
-  }) {
-    const t = this.requireWrite();
-    await this.refreshIfNeeded();
+  async createEvent(
+    store: SessionStore,
+    event: { summary: string; description?: string; location?: string; startIso: string; endIso: string }
+  ) {
+    const t = this.requireWrite(store);
+    await this.refreshIfNeeded(store);
 
     const payload = {
       summary: event.summary,
@@ -179,17 +206,12 @@ export class GoogleService {
   }
 
   async updateEvent(
+    store: SessionStore,
     eventId: string,
-    patch: Partial<{
-      summary: string;
-      description: string;
-      location: string;
-      startIso: string;
-      endIso: string;
-    }>
+    patch: Partial<{ summary: string; description: string; location: string; startIso: string; endIso: string }>
   ) {
-    const t = this.requireWrite();
-    await this.refreshIfNeeded();
+    const t = this.requireWrite(store);
+    await this.refreshIfNeeded(store);
 
     const payload: any = {};
     if (patch.summary !== undefined) payload.summary = patch.summary;
@@ -211,73 +233,80 @@ export class GoogleService {
     );
   }
 
-  getCurrentMode() {
-    return this.tokens?.mode ?? null;
+  /* ================== SYNC ================== */
+
+  async initSync(store: SessionStore) {
+    const t = this.ensureConnected(store);
+    await this.refreshIfNeeded(store);
+
+    let pageToken: string | undefined = undefined;
+    const allItems: any[] = [];
+    let nextSyncToken: string | null = null;
+
+    do {
+      const url =
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events" +
+        `?singleEvents=true&showDeleted=true&maxResults=250` +
+        (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "");
+
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${t.access_token}` },
+      });
+
+      const data: any = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new BadGatewayException({ where: "initSync", status: res.status, google: data });
+      }
+
+      allItems.push(...(data.items ?? []));
+      pageToken = data.nextPageToken;
+      if (data.nextSyncToken) nextSyncToken = data.nextSyncToken;
+    } while (pageToken);
+
+    if (!nextSyncToken) {
+      throw new BadGatewayException({
+        where: "initSync",
+        message: "Google n'a pas renvoyé nextSyncToken",
+      });
+    }
+
+    store.syncToken = nextSyncToken;
+    return { items: allItems, syncToken: store.syncToken };
   }
 
-  async initSync() {
-    const t = this.ensureConnected();
-    await this.refreshIfNeeded();
+  async syncChanges(store: SessionStore) {
+    const t = this.ensureConnected(store);
+    await this.refreshIfNeeded(store);
 
-    const timeMin = new Date().toISOString();
-    const url =
-      "https://www.googleapis.com/calendar/v3/calendars/primary/events" +
-      `?maxResults=50&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin)}`;
-
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${t.access_token}` },
-    });
-
-    const data: any = await res.json();
-    if (!res.ok) throw new Error(`Init sync error: ${JSON.stringify(data)}`);
-
-    this.syncToken = data.nextSyncToken ?? null;
-
-    return { items: data.items ?? [], syncToken: this.syncToken };
-  }
-
-  async syncChanges() {
-    const t = this.ensureConnected();
-    await this.refreshIfNeeded();
-
-    if (!this.syncToken) {
-      throw new Error("Sync non initialisé. Appelle /calendar/sync/init d'abord.");
+    if (!store.syncToken) {
+      throw new BadRequestException("Sync non initialisé. Appelle /calendar/sync/init d'abord.");
     }
 
     const url =
       "https://www.googleapis.com/calendar/v3/calendars/primary/events" +
-      `?syncToken=${encodeURIComponent(this.syncToken)}`;
+      `?syncToken=${encodeURIComponent(store.syncToken)}&showDeleted=true`;
 
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${t.access_token}` },
     });
 
-    // Google peut renvoyer 410 si le syncToken a expiré
+    if (res.status === 401) {
+      store.tokens = undefined;
+      store.syncToken = null;
+      throw new UnauthorizedException("Google Unauthorized (401): reconnecte-toi.");
+    }
+
     if (res.status === 410) {
-      this.syncToken = null;
-      throw new Error("Sync token expiré (HTTP 410). Réinitialise la sync.");
+      store.syncToken = null;
+      throw new BadRequestException("syncToken expiré/invalide: relance /calendar/sync/init.");
     }
 
-    const data: any = await res.json();
-    if (!res.ok) throw new Error(`Sync changes error: ${JSON.stringify(data)}`);
+    const data: any = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new BadGatewayException({ where: "syncChanges", status: res.status, google: data });
+    }
 
-    this.syncToken = data.nextSyncToken ?? this.syncToken;
-
-    return { items: data.items ?? [], syncToken: this.syncToken };
+    store.syncToken = data.nextSyncToken ?? store.syncToken;
+    return { items: data.items ?? [], syncToken: store.syncToken };
   }
-
-  logout() {
-    this.tokens = null;
-    this.syncToken = null;
-  }
-
-  isConnected() {
-    return !!this.tokens?.access_token;
-  }
-
-  getMode() {
-    return this.tokens?.mode ?? null;
-  }
-
-
 }

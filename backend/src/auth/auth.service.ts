@@ -1,12 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import { GoogleService } from "../google/google.service";
-import { Mode } from "./dto/exchange-code.dto";
+import { GoogleService, Mode, SessionStore } from "../google/google.service";
 
 @Injectable()
 export class AuthService {
   constructor(private readonly google: GoogleService) {}
 
-  exchange(code: string, mode: Mode) {
-    return this.google.exchangeCode(code, mode);
+  exchange(store: SessionStore, code: string, mode: Mode) {
+    return this.google.exchangeCode(store, code, mode);
   }
 }

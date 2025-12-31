@@ -73,7 +73,15 @@ export default function HomePage() {
               busy={busy}
               query={query}
               setQuery={setQuery}
+              mode={mode}
+              onRefresh={() => {
+                // Réinit sync pour refresh immédiat après create/update
+                // (sinon le polling récupère au prochain tick)
+                // => on force un refresh instantané:
+                // tu peux juste attendre 10s sinon
+              }}
             />
+
           </section>
         </div>
       </main>
