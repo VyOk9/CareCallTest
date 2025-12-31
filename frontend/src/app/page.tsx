@@ -9,29 +9,46 @@ import { EventsCard } from "@/components/EventsCard";
 import { ErrorCard } from "@/components/ErrorCard";
 
 import { useOAuthReturn } from "@/hooks/useOAuthReturn";
-import { useEvents } from "@/hooks/useEvents";
+import { useRealtimeEvents } from "@/hooks/useRealtimeEvents";
+import { useBackendStatus } from "@/hooks/useBackendStatus";
 
 export default function HomePage() {
   const [mode, setMode] = useState<Mode>("read");
   const [status, setStatus] = useState("Déconnecté");
   const [error, setError] = useState<string | null>(null);
 
-  const { events, busy, query, setQuery, loadEvents } = useEvents(setStatus, setError);
+  // ✅ vrai état de connexion (pas basé sur une string)
+  const [connected, setConnected] = useState(false);
 
+  // ✅ Au refresh de page, on demande au backend s'il a une session/tokens
+  useBackendStatus({
+    setConnected,
+    setMode,
+    setStatus,
+    setError,
+  });
+
+  const { events, busy } = useRealtimeEvents(connected, 10_000);
+  const [query, setQuery] = useState("");
+
+  // ✅ Retour OAuth (quand Google renvoie ?code=...)
   useOAuthReturn({
     setStatus,
     setMode,
     onConnected: () => {
-      // optionnel: auto-load events après connexion
-      // loadEvents();
+      setConnected(true);
+      setError(null);
     },
-    onError: setError,
+    onError: (msg) => {
+      setConnected(false);
+      setError(msg);
+    },
   });
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/40">
       <main className="mx-auto max-w-6xl px-4 py-10 md:px-6">
-        <HeaderBar status={status} />
+        <HeaderBar status={status} isConnected={connected} />
 
         <div className="mt-8 grid gap-6 lg:grid-cols-3">
           <aside className="space-y-6 lg:col-span-1">
@@ -39,7 +56,12 @@ export default function HomePage() {
               mode={mode}
               setMode={setMode}
               busy={busy}
-              loadEvents={loadEvents}
+              isConnected={connected}
+              onLoggedOut={() => {
+                setConnected(false);
+                setStatus("Déconnecté");
+                setError(null);
+              }}
             />
 
             {error && <ErrorCard error={error} />}

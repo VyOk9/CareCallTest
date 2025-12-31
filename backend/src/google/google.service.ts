@@ -17,6 +17,9 @@ type TokenStore = {
 @Injectable()
 export class GoogleService {
   private tokens: TokenStore | null = null;
+  private refreshing: Promise<void> | null = null;
+  private syncToken: string | null = null;
+
 
   private get env() {
     const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -94,27 +97,44 @@ export class GoogleService {
     if (!this.isExpiredSoon()) return;
 
     if (!t.refresh_token) {
-      throw new UnauthorizedException("Token expiré et pas de refresh_token (relogin nécessaire).");
+      throw new Error("Token expiré et pas de refresh_token (relogin nécessaire).");
     }
 
-    const { clientId, clientSecret } = this.env;
+    if (this.refreshing) {
+      await this.refreshing;
+      return;
+    }
 
-    const body = new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: t.refresh_token,
-      grant_type: "refresh_token",
-    });
+    this.refreshing = (async () => {
+      const { clientId, clientSecret } = this.env;
 
-    const data = await this.googleFetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    });
+      const body = new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: t.refresh_token!,
+        grant_type: "refresh_token",
+      });
 
-    t.access_token = data.access_token;
-    t.expiry_date = Date.now() + (data.expires_in ?? 3600) * 1000;
+      const res = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      });
+
+      const data: any = await res.json();
+      if (!res.ok) throw new Error(`Refresh error: ${JSON.stringify(data)}`);
+
+      t.access_token = data.access_token;
+      t.expiry_date = Date.now() + (data.expires_in ?? 3600) * 1000;
+    })();
+
+    try {
+      await this.refreshing;
+    } finally {
+      this.refreshing = null;
+    }
   }
+
 
   async listUpcomingEvents() {
     const t = this.ensureConnected();
@@ -194,4 +214,70 @@ export class GoogleService {
   getCurrentMode() {
     return this.tokens?.mode ?? null;
   }
+
+  async initSync() {
+    const t = this.ensureConnected();
+    await this.refreshIfNeeded();
+
+    const timeMin = new Date().toISOString();
+    const url =
+      "https://www.googleapis.com/calendar/v3/calendars/primary/events" +
+      `?maxResults=50&singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin)}`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${t.access_token}` },
+    });
+
+    const data: any = await res.json();
+    if (!res.ok) throw new Error(`Init sync error: ${JSON.stringify(data)}`);
+
+    this.syncToken = data.nextSyncToken ?? null;
+
+    return { items: data.items ?? [], syncToken: this.syncToken };
+  }
+
+  async syncChanges() {
+    const t = this.ensureConnected();
+    await this.refreshIfNeeded();
+
+    if (!this.syncToken) {
+      throw new Error("Sync non initialisé. Appelle /calendar/sync/init d'abord.");
+    }
+
+    const url =
+      "https://www.googleapis.com/calendar/v3/calendars/primary/events" +
+      `?syncToken=${encodeURIComponent(this.syncToken)}`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${t.access_token}` },
+    });
+
+    // Google peut renvoyer 410 si le syncToken a expiré
+    if (res.status === 410) {
+      this.syncToken = null;
+      throw new Error("Sync token expiré (HTTP 410). Réinitialise la sync.");
+    }
+
+    const data: any = await res.json();
+    if (!res.ok) throw new Error(`Sync changes error: ${JSON.stringify(data)}`);
+
+    this.syncToken = data.nextSyncToken ?? this.syncToken;
+
+    return { items: data.items ?? [], syncToken: this.syncToken };
+  }
+
+  logout() {
+    this.tokens = null;
+    this.syncToken = null;
+  }
+
+  isConnected() {
+    return !!this.tokens?.access_token;
+  }
+
+  getMode() {
+    return this.tokens?.mode ?? null;
+  }
+
+
 }

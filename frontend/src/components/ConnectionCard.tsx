@@ -7,18 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
-import { ExternalLink, Copy, RefreshCw, Shield, ShieldCheck, Loader2 } from "lucide-react";
+import { ExternalLink, Shield, ShieldCheck, LogOut, Copy } from "lucide-react";
 
 export function ConnectionCard({
   mode,
   setMode,
   busy,
-  loadEvents,
+  isConnected,
+  onLoggedOut,
 }: {
   mode: Mode;
   setMode: (m: Mode) => void;
   busy: boolean;
-  loadEvents: () => void;
+  isConnected: boolean;
+  onLoggedOut: () => void;
 }) {
   const env = getPublicEnv();
   const authUrl = buildGoogleAuthUrl(mode);
@@ -26,6 +28,17 @@ export function ConnectionCard({
 
   const missing =
     !env.clientId || !env.redirectUri || !env.backendUrl || !env.scopeRead || !env.scopeWrite;
+
+  async function logout() {
+    if (!env.backendUrl) return;
+
+    try {
+      await fetch(`${env.backendUrl}/calendar/logout`, { method: "POST" });
+    } finally {
+      // reset UI côté front
+      onLoggedOut();
+    }
+  }
 
   return (
     <Card className="rounded-2xl shadow-sm">
@@ -35,7 +48,9 @@ export function ConnectionCard({
           <span className="text-lg font-semibold">Connexion Google</span>
         </div>
         <p className="text-sm text-muted-foreground">
-          Choisis le mode puis lance l’authentification OAuth Google Calendar.
+          {isConnected
+            ? "Connecté. Synchronisation automatique active."
+            : "Choisis le mode puis lance l’authentification OAuth Google Calendar."}
         </p>
       </CardHeader>
 
@@ -44,8 +59,7 @@ export function ConnectionCard({
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm">
             <div className="font-semibold text-destructive">Configuration manquante</div>
             <div className="text-destructive/80">
-              Vérifie le fichier{" "}
-              <code className="rounded bg-muted px-1">.env.local</code> puis redémarre{" "}
+              Vérifie <code className="rounded bg-muted px-1">.env.local</code> puis redémarre{" "}
               <code className="rounded bg-muted px-1">npm run dev</code>.
             </div>
           </div>
@@ -58,7 +72,9 @@ export function ConnectionCard({
             <Button
               variant={mode === "read" ? "default" : "outline"}
               onClick={() => setMode("read")}
+              disabled={isConnected}
               className="gap-2 rounded-xl"
+              title={isConnected ? "Déconnecte-toi pour changer le mode" : undefined}
             >
               <Shield className="h-4 w-4" />
               Lecture
@@ -66,7 +82,9 @@ export function ConnectionCard({
             <Button
               variant={mode === "write" ? "default" : "outline"}
               onClick={() => setMode("write")}
+              disabled={isConnected}
               className="gap-2 rounded-xl"
+              title={isConnected ? "Déconnecte-toi pour changer le mode" : undefined}
             >
               <ShieldCheck className="h-4 w-4" />
               Écriture
@@ -75,44 +93,33 @@ export function ConnectionCard({
 
           <div className="text-xs text-muted-foreground">
             Scope utilisé :
-            <code className="ml-1 rounded bg-muted px-1 py-0.5">
-              {scope ?? "—"}
-            </code>
+            <code className="ml-1 rounded bg-muted px-1 py-0.5">{scope ?? "—"}</code>
           </div>
         </div>
 
         {/* ACTIONS */}
-        <div className="grid gap-3">
-          <Button asChild disabled={missing || !authUrl} className="w-full rounded-xl">
+        {!isConnected ? (
+          <Button asChild disabled={missing || !authUrl || busy} className="w-full rounded-xl">
             <a
               href={authUrl || "#"}
-              onClick={(e) => missing && e.preventDefault()}
+              onClick={(e) => (missing ? e.preventDefault() : undefined)}
               className="flex items-center gap-2"
             >
               <ExternalLink className="h-4 w-4" />
               Se connecter avec Google ({mode})
             </a>
           </Button>
-
+        ) : (
           <Button
-            variant="secondary"
-            className="w-full rounded-xl"
-            onClick={loadEvents}
-            disabled={busy || missing}
+            variant="destructive"
+            className="w-full rounded-xl gap-2"
+            onClick={logout}
+            disabled={busy}
           >
-            {busy ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Chargement…
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Charger mes événements
-              </>
-            )}
+            <LogOut className="h-4 w-4" />
+            Se déconnecter
           </Button>
-        </div>
+        )}
 
         <Separator />
 

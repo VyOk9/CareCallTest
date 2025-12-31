@@ -1,9 +1,16 @@
 import { Badge } from "@/components/ui/badge";
 import { Calendar, CheckCircle2, Loader2, Shield, ShieldCheck, XCircle } from "lucide-react";
-import { isConnected, statusVariant } from "@/lib/utils";
+import { statusVariant } from "@/lib/utils";
 
-export function HeaderBar({ status }: { status: string }) {
+export function HeaderBar({
+  status,
+  isConnected,
+}: {
+  status: string;
+  isConnected: boolean;
+}) {
   const v = statusVariant(status);
+
   const icon =
     v === "destructive" ? (
       <XCircle className="h-4 w-4" />
@@ -23,8 +30,12 @@ export function HeaderBar({ status }: { status: string }) {
             <Calendar className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Google Calendar</h1>
-            <p className="text-sm text-muted-foreground">OAuth (lecture/écriture) + listing des prochains événements.</p>
+            <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
+              Google Calendar
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              OAuth (lecture/écriture) + listing des prochains événements.
+            </p>
           </div>
         </div>
       </div>
@@ -34,7 +45,8 @@ export function HeaderBar({ status }: { status: string }) {
           {icon}
           {status}
         </Badge>
-        {isConnected(status) ? (
+
+        {isConnected ? (
           <Badge variant="outline" className="gap-2">
             <ShieldCheck className="h-4 w-4" />
             Session active
