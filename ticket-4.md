@@ -6,11 +6,11 @@
 
 ### Ce que le client observe
 
-La transcription affichée est correcte, mais la réponse de l’assistant contient parfois des informations qui ne correspondent pas à la demande, comme si elle répondait à un autre message.
+La transcription affichée est correcte, mais la réponse de l’assistant contient parfois des informations incohérentes, comme si elle répondait à un autre message.
 
 ### Reformulation factuelle
 
-L’application reçoit une transcription valide mais le LLM interprète des éléments parasites, ce qui entraîne des réponses incohérentes par rapport à la demande initiale.
+L’application reçoit une transcription valide, mais celle-ci est polluée par des éléments parasites, ce qui entraîne une interprétation incorrecte par le LLM.
 
 ---
 
@@ -18,39 +18,37 @@ L’application reçoit une transcription valide mais le LLM interprète des él
 
 L’analyse du pipeline (audio → transcription → LLM → agenda) montre que :
 
-* Les fichiers audio fournis peuvent contenir plusieurs voix et du bruit de fond.
-* Les audios sont fournis dans des formats hétérogènes (stéréo, différents sample rates, codecs compressés).
-* Avant correctif, les fichiers n’étaient pas normalisés avant transcription.
-
-Ces éléments provoquent une **pollution de la transcription** (mots parasites, morceaux de phrases secondaires), ce qui amène le LLM à interpréter une demande incorrecte.
+* Les fichiers audio peuvent contenir plusieurs voix, du bruit de fond et des codecs hétérogènes.
+* Avant correctif, **les fichiers étaient envoyés au STT sans normalisation préalable**.
+* Cela provoquait une transcription polluée (voix secondaires, bruits, variations de sample rate), amenant le LLM à interpréter une demande incorrecte.
 
 ### Cause racine
 
-Absence de normalisation audio avant la transcription, entraînant une mauvaise séparation de la voix principale et des voix secondaires.
+**Absence de normalisation audio avant transcription**, entraînant une pollution de la reconnaissance vocale et une mauvaise interprétation par le LLM.
 
 ---
 
 ## 3. Ticket clair et structuré
 
-### Demande du client
+### Demande client
 
-La réponse de l’assistant est incohérente par rapport à la transcription affichée.
+La réponse de l’assistant est incohérente par rapport à la demande réelle.
 
 ### Analyse de la cause racine
 
-La transcription est polluée par des voix secondaires et du bruit de fond, car les fichiers audio ne sont pas normalisés avant envoi au service de reconnaissance vocale.
+Les fichiers audio n’étaient pas normalisés avant envoi au service de reconnaissance vocale.
 
 ### Plan d’action
 
-1. Normaliser systématiquement tous les fichiers audio avant transcription.
-2. Forcer un format compatible STT (mono, 16 kHz, PCM).
-3. Conserver la logique de transcription continue.
+1. Normaliser systématiquement les fichiers audio avant transcription.
+2. Forcer un format STT standard (mono, 16 kHz, 16-bit PCM).
+3. Conserver la reconnaissance continue.
 
 ### Changements techniques à effectuer
 
-* Modifier `app/audio_upload.py` :
+**`app/audio_upload.py` :**
 
-  * Conversion forcée en WAV mono 16 kHz / 16-bit PCM avant transcription.
+* Conversion systématique en WAV mono 16 kHz / 16-bit PCM avant transcription.
 
 ---
 
@@ -58,17 +56,13 @@ La transcription est polluée par des voix secondaires et du bruit de fond, car 
 
 ### Correctif appliqué
 
-Les audios sont désormais normalisés en mono 16 kHz / PCM avant transcription, ce qui améliore la clarté de la voix principale et élimine la majorité des interférences liées aux voix secondaires et au bruit de fond.
+Tous les fichiers audio sont désormais convertis et normalisés avant transcription, ce qui améliore significativement la qualité de la reconnaissance vocale et la fiabilité des réponses du LLM.
 
 ---
 
 ## 5. Retour au client
 
-**Message client :**
-
 > Bonjour,
-> Nous avons identifié que certaines incohérences provenaient de la qualité et du format des fichiers audio transmis (présence de bruit de fond et de plusieurs voix).
-> Nous avons appliqué un correctif qui normalise automatiquement vos audios avant transcription afin d’améliorer la reconnaissance de la voix principale.
-> Vos commandes vocales sont désormais interprétées de manière beaucoup plus fiable.
->
+> Nous avons identifié que certaines incohérences provenaient du format et de la qualité des fichiers audio transmis.
+> Vos audios sont désormais automatiquement normalisés avant transcription, ce qui améliore la reconnaissance de la voix principale et la cohérence des réponses de l’assistant.
 > N’hésitez pas à nous recontacter si vous constatez encore un comportement anormal.

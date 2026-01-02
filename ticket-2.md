@@ -18,69 +18,57 @@ L’application crée correctement un évènement Google Calendar, mais celui-ci
 
 L’analyse du workflow (transcription → LLM → création Google Agenda) montre que :
 
-* Le backend utilise le `calendar_id` fourni pour insérer l’évènement.
-* Le système fonctionne techniquement : l’évènement est bien créé.
-* Cependant, le produit **ne permet pas à l’utilisateur de sélectionner explicitement son calendrier cible**.
-
-Dans Google Calendar, un utilisateur peut disposer de plusieurs calendriers (personnel, professionnel, partagé, etc.).
-En l’absence de sélection explicite, l’application peut écrire dans un calendrier valide mais différent de celui que le client consulte.
+* L’interface transmettait toujours `calendar_id="primary"` au backend.
+* Les utilisateurs disposent souvent de plusieurs calendriers (personnel, professionnel, partagés).
+* L’évènement était donc créé dans un calendrier valide mais **pas nécessairement celui consulté par le client**.
 
 ### Cause racine
 
-**Absence de sélection explicite du calendrier cible côté interface utilisateur**, entraînant l’utilisation d’un calendrier différent de celui attendu par le client.
+**Le `calendar_id` était hardcodé à `"primary"` dans `streamlit_app.py`, empêchant l’utilisateur de choisir son calendrier cible.**
 
 ---
 
 ## 3. Ticket clair et structuré
 
-### Demande du client
+### Demande client
 
-Le rendez-vous est créé, mais n’apparaît pas dans son agenda habituel.
+Le rendez-vous est créé, mais il n’apparaît pas dans son agenda habituel.
 
 ### Analyse de la cause racine
 
-L’application ne permet pas à l’utilisateur de choisir son calendrier par défaut. Elle écrit donc dans un calendrier valide mais potentiellement différent de celui consulté.
+L’application forçait l’utilisation du calendrier `"primary"` sans laisser le choix à l’utilisateur.
 
 ### Plan d’action
 
-1. Lister les calendriers accessibles via l’API Google Calendar après l’authentification OAuth.
-2. Permettre à l’utilisateur de sélectionner son calendrier par défaut dans l’interface.
-3. Sauvegarder ce choix utilisateur.
-4. Utiliser ce `calendar_id` pour toutes les créations de rendez-vous.
+1. Lister tous les calendriers disponibles via l’API Google Calendar.
+2. Ajouter un sélecteur de calendrier dans l’interface.
+3. Passer le `calendar_id` sélectionné au workflow.
+4. Inclure le `calendar_id` dans la clé de cache de l’interface pour relancer le workflow lors d’un changement de calendrier.
 
 ### Changements techniques à effectuer
 
-* Côté interface :
+**Côté interface (`streamlit_app.py`) :**
 
-  * Appeler `calendarList().list()` pour récupérer les calendriers disponibles.
-  * Ajouter une sélection de calendrier (menu déroulant).
-  * Stocker le `calendar_id` choisi.
-* Côté backend :
-
-  * Utiliser systématiquement le `calendar_id` sélectionné pour la création d’évènements.
-  * Ou fallback sur le calendrier par défaut si aucun n’est sélectionné.
+* Récupération des calendriers via `calendarList().list()`.
+* Ajout d’un menu déroulant de sélection.
+* Passage de `selected_calendar_id` au workflow.
+* Clé de cache basée sur `calendar_id + hash du fichier`.
 
 ---
 
 ## 4. Application du changement
 
-**À implémenter côté interface** :
+### Correctif appliqué
 
-* Récupération de la liste des calendriers Google disponibles.
-* Ajout d’un sélecteur de calendrier dans l’interface.
-* Transmission du `calendar_id` sélectionné au workflow.
-
-*(Aucun correctif backend n’est nécessaire, le système fonctionne déjà correctement.)*
+L’interface permet désormais de sélectionner explicitement le calendrier cible.
+Le `calendar_id` choisi est transmis au backend et inclus dans la clé de cache, garantissant que chaque calendrier reçoit ses propres créations d’évènements.
 
 ---
 
 ## 5. Retour au client
 
-**Message client :**
-
 > Bonjour,
-> Votre rendez-vous a bien été créé, mais sur un autre agenda que celui que vous consultez habituellement.
-> Nous avons identifié que l’application ne permettait pas encore de sélectionner explicitement votre calendrier par défaut.
-> Nous allons ajouter cette possibilité afin que vos prochains rendez-vous soient créés directement dans l’agenda de votre choix.
->
-> Nous vous tiendrons informé de la mise à disposition de cette amélioration.
+> Nous avons identifié que vos rendez-vous étaient créés dans le calendrier “primary” par défaut.
+> Nous avons corrigé ce comportement en vous permettant de sélectionner explicitement l’agenda de votre choix.
+> Vos prochains rendez-vous seront désormais créés directement dans l’agenda sélectionné.
+> Merci pour votre patience et votre compréhension.
