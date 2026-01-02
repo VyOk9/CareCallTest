@@ -1,4 +1,5 @@
 import http.server
+import hashlib
 import tempfile
 import threading
 import time
@@ -28,6 +29,10 @@ if "cached_args" not in st.session_state:
     st.session_state["cached_args"] = {}
 if "cached_events" not in st.session_state:
     st.session_state["cached_events"] = None
+if "cached_status" not in st.session_state:
+    st.session_state["cached_status"] = ""
+if "cached_answer" not in st.session_state:
+    st.session_state["cached_answer"] = ""
 
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
@@ -124,7 +129,11 @@ if "googleCredentials" not in st.session_state:
             webbrowser.open(auth_url)
             while GoogleOAuthCallbackHandler.received_auth_code is None:
                 time.sleep(0.3)
-            token_data = session_obj.fetch_token(token_url="https://oauth2.googleapis.com/token", code=GoogleOAuthCallbackHandler.received_auth_code, client_secret=session_obj.client_secret)
+            token_data = session_obj.fetch_token(
+                token_url="https://oauth2.googleapis.com/token",
+                code=GoogleOAuthCallbackHandler.received_auth_code,
+                client_secret=session_obj.client_secret,
+            )
             profile_info = fetch_user_profile(token_data["access_token"])
             st.session_state["userName"] = profile_info.get("given_name", "Unknown")
             st.session_state["userPicture"] = profile_info.get("picture", "")
@@ -155,24 +164,52 @@ st.markdown(f"<h2>Welcome, {st.session_state.get('userName', 'Unknown')}!</h2>",
 
 calendar_api_service = build("calendar", "v3", credentials=st.session_state["googleCredentials"])
 
+calendar_list_resp = calendar_api_service.calendarList().list().execute()
+cal_items = calendar_list_resp.get("items", [])
+cal_options = {f"{c.get('summary', 'Unnamed')} ({c.get('id')})": c.get("id") for c in cal_items if c.get("id")}
+selected_label = st.selectbox("Select target calendar", list(cal_options.keys())) if cal_options else None
+selected_calendar_id = cal_options.get(selected_label, "primary") if selected_label else "primary"
+
 audio_file_uploader = st.file_uploader("Upload an audio file")
+
 if audio_file_uploader:
-    file_sig = f"{audio_file_uploader.name}_{audio_file_uploader.size}"
+    audio_bytes = audio_file_uploader.getvalue()
+    file_sig = hashlib.sha256(audio_bytes).hexdigest()
+
     if st.session_state["processed_sig"] != file_sig:
         workflow_placeholder = st.empty()
         workflow_placeholder.info("Running workflow...")
-        with tempfile.NamedTemporaryFile(delete=False, suffix="." + audio_file_uploader.name.split(".")[-1]) as temp_audio:
-            temp_audio.write(audio_file_uploader.read())
+
+        suffix = ""
+        if "." in audio_file_uploader.name:
+            suffix = "." + audio_file_uploader.name.split(".")[-1]
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_audio:
+            temp_audio.write(audio_bytes)
             local_audio_path = temp_audio.name
         try:
-            workflow_result = WorkflowOrchestrator.orchestrate_workflow(local_audio_path, calendar_api_service, "primary", max_retries=2)
+            workflow_result = WorkflowOrchestrator.orchestrate_workflow(
+                local_audio_path,
+                calendar_api_service,
+                selected_calendar_id,
+                max_retries=2,
+            )
             workflow_placeholder.empty()
             st.session_state["processed_sig"] = file_sig
-            st.session_state["cached_fn"] = workflow_result.get("function_name")
-            st.session_state["cached_args"] = workflow_result.get("function_args", {})
-            raw_calendar_data = workflow_result.get("calendar_result", "")
-            st.session_state["cached_events"] = convert_gcal_to_calendar_events(raw_calendar_data)
-            st.session_state["cached_status"] = workflow_result.get("status")
+            st.session_state["cached_status"] = workflow_result.get("status", "")
+
+            if st.session_state["cached_status"] == "answer_only":
+                st.session_state["cached_answer"] = workflow_result.get("answer", "")
+                st.session_state["cached_fn"] = None
+                st.session_state["cached_args"] = {}
+                st.session_state["cached_events"] = None
+            else:
+                st.session_state["cached_answer"] = ""
+                st.session_state["cached_fn"] = workflow_result.get("function_name")
+                st.session_state["cached_args"] = workflow_result.get("function_args", {})
+                raw_calendar_data = workflow_result.get("calendar_result", "")
+                st.session_state["cached_events"] = convert_gcal_to_calendar_events(raw_calendar_data)
+
         except WorkflowError as w_err:
             workflow_placeholder.empty()
             st.error(f"Workflow failed: {w_err}")
@@ -223,8 +260,11 @@ if audio_file_uploader:
         else:
             st.warning("Unknown function call, no calendar to display.")
     elif status_val == "answer_only":
-        st.info(st.session_state.get("cached_answer", ""))
+        ans = st.session_state.get("cached_answer", "")
+        st.info(ans if ans else "No answer returned.")
     elif status_val == "no_speech":
         st.warning("No speech recognized.")
+    else:
+        st.info("Upload an audio file to start the workflow.")
 else:
     st.info("Upload an audio file to start the workflow.")
