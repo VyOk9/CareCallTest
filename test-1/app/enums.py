@@ -1,12 +1,6 @@
 import enum
 
 
-class AllowedAudioExtension(str, enum.Enum):
-    M4A = ".m4a"
-    MP3 = ".mp3"
-    WAV = ".wav"
-
-
 class AzureSpeechSettings(str, enum.Enum):
     LANGUAGE = "fr-FR"
 

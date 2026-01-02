@@ -155,7 +155,7 @@ st.markdown(f"<h2>Welcome, {st.session_state.get('userName', 'Unknown')}!</h2>",
 
 calendar_api_service = build("calendar", "v3", credentials=st.session_state["googleCredentials"])
 
-audio_file_uploader = st.file_uploader("Upload an audio file", type=["m4a", "mp3", "wav"])
+audio_file_uploader = st.file_uploader("Upload an audio file")
 if audio_file_uploader:
     file_sig = f"{audio_file_uploader.name}_{audio_file_uploader.size}"
     if st.session_state["processed_sig"] != file_sig:
