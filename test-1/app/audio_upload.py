@@ -17,6 +17,7 @@ class AudioUpload:
         wav_path = os.path.splitext(source_path)[0] + ".wav"
         logging.info(f"[convert_audio_to_wav] Converting {source_path} to WAV")
         audio = AudioSegment.from_file(source_path)
+        audio = audio.set_channels(1).set_frame_rate(16000).set_sample_width(2)
         audio.export(wav_path, format="wav")
         logging.info(f"[convert_audio_to_wav] Conversion complete: {wav_path}")
         return wav_path
