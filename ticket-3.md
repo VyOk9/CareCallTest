@@ -73,10 +73,14 @@ Le mode de transcription utilisé est limité et ne couvre pas correctement les 
 
 ## 5. Retour au client
 
-**Message client :**
+Voici la version orientée **client / usage** :
+
+---
 
 > Bonjour,
-> Nous avons identifié que la transcription était tronquée sur les audios longs car l’application utilisait un mode de reconnaissance limité.
-> Nous avons corrigé ce point en passant à une reconnaissance continue (streaming) et en augmentant le délai maximum pour couvrir les fichiers longs, ce qui permet désormais de récupérer une transcription complète.
+> Nous avons corrigé un problème qui pouvait interrompre la transcription de vos enregistrements lorsque ceux-ci étaient longs.
+> L’application est désormais capable de traiter vos audios jusqu’à la fin afin de prendre en compte l’intégralité de votre demande.
 >
-> À noter : pour les fichiers exceptionnellement longs, un délai maximum reste nécessaire. Nous pouvons le rendre configurable ou l’adapter automatiquement à la durée de l’audio, et afficher un message clair si un timeout survient.
+> Pour les enregistrements très longs, un délai maximum reste en place afin de garantir le bon fonctionnement du service. Si ce délai est atteint, un message clair vous sera affiché.
+>
+> N’hésitez pas à nous recontacter si vous rencontrez d’autres soucis ou avez des questions.

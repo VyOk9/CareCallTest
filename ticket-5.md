@@ -72,6 +72,10 @@ Tous les fichiers sont automatiquement convertis et normalisés avant transcript
 ## 5. Retour au client
 
 > Bonjour,
-> Les formats audio `.opus` et autres formats compatibles sont désormais pris en charge.
-> Vos fichiers sont automatiquement convertis et normalisés avant transcription, ce qui garantit une reconnaissance vocale fiable.
-> Vous pouvez désormais utiliser ces formats sans restriction.
+> Nous avons corrigé le problème qui empêchait l’utilisation de certains formats audio.
+> Vous pouvez désormais envoyer vos fichiers audio (y compris les formats comme `.opus`) sans difficulté.
+> L’application se charge automatiquement de les préparer afin qu’ils soient correctement compris par l’assistant vocal.
+>
+> Vous pouvez donc utiliser vos fichiers normalement, sans action particulière de votre côté.
+>
+> N’hésitez pas à nous recontacter si vous rencontrez d’autres soucis ou avez des questions.

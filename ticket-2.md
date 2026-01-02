@@ -68,7 +68,9 @@ Le `calendar_id` choisi est transmis au backend et inclus dans la clé de cache,
 ## 5. Retour au client
 
 > Bonjour,
-> Nous avons identifié que vos rendez-vous étaient créés dans le calendrier “primary” par défaut.
-> Nous avons corrigé ce comportement en vous permettant de sélectionner explicitement l’agenda de votre choix.
-> Vos prochains rendez-vous seront désormais créés directement dans l’agenda sélectionné.
-> Merci pour votre patience et votre compréhension.
+> Nous avons corrigé un problème qui pouvait faire apparaître vos rendez-vous dans un autre agenda que celui que vous consultez habituellement.
+> Vous pouvez désormais choisir directement l’agenda dans lequel vos rendez-vous seront créés.
+>
+> Vos prochains rendez-vous apparaîtront donc exactement là où vous le souhaitez.
+>
+> N’hésitez pas à nous recontacter si vous avez d’autres questions ou besoins.

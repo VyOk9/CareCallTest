@@ -63,6 +63,8 @@ Tous les fichiers audio sont désormais convertis et normalisés avant transcrip
 ## 5. Retour au client
 
 > Bonjour,
-> Nous avons identifié que certaines incohérences provenaient du format et de la qualité des fichiers audio transmis.
-> Vos audios sont désormais automatiquement normalisés avant transcription, ce qui améliore la reconnaissance de la voix principale et la cohérence des réponses de l’assistant.
-> N’hésitez pas à nous recontacter si vous constatez encore un comportement anormal.
+> Nous avons corrigé un problème qui pouvait entraîner des réponses imprécises de l’assistant lorsque la qualité du son variait ou que plusieurs personnes parlaient en même temps.
+> L’application traite désormais automatiquement vos enregistrements afin de mieux comprendre la voix principale.
+> Cela permet d’obtenir des réponses plus fiables et plus cohérentes.
+>
+> N’hésitez pas à nous recontacter si vous constatez encore un comportement inhabituel.

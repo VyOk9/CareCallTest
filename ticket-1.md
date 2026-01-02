@@ -77,8 +77,6 @@ system_instructions = (
 
 ## 5. Retour au client
 
-**Message client :**
-
 > Bonjour,
 > Nous avons identifié la cause de l’erreur qui décalait vos rendez-vous de décembre vers janvier : une règle incorrecte dans l’interprétation automatique de la demande.
 > Nous avons corrigé cette règle afin que le mois indiqué dans votre commande vocale soit désormais toujours respecté.
