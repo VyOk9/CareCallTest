@@ -73,10 +73,6 @@ Le mode de transcription utilisé est limité et ne couvre pas correctement les 
 
 ## 5. Retour au client
 
-Voici la version orientée **client / usage** :
-
----
-
 > Bonjour,
 > Nous avons corrigé un problème qui pouvait interrompre la transcription de vos enregistrements lorsque ceux-ci étaient longs.
 > L’application est désormais capable de traiter vos audios jusqu’à la fin afin de prendre en compte l’intégralité de votre demande.
