@@ -1,0 +1,57 @@
+[tool.ruff]
+line-length = 200
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".git",
+    ".git-rewrite",
+    ".mypy_cache",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".venv",
+    ".vscode",
+    ".idea",
+    "__pypackages__",
+    "_build",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+    "ars-common-bootstrap"
+]
+
+[tool.ruff.lint]
+ignore = ["E501", "C901", "N815", "N818"]
+select = ["C", "E", "F", "I", "W", "UP", "B", "Q", "N"]
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+known-third-party = ["pydantic"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.ruff.lint.pyupgrade]
+keep-runtime-typing = true
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src/**/*.py"]
+disallow_untyped_defs = true
+disallow_any_generics = true
+no_implicit_optional = false
+hide_error_codes = false
+strict_equality = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+no_implicit_reexport = true
+disable_error_code = ["union-attr", "call-overload"]
+pretty = true

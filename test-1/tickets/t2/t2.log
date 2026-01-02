@@ -1,0 +1,42 @@
+2025-02-18 09:12:01,214 INFO  [api.request] request_id=REQ-9f12a user_id=usr_42 device=iphone
+2025-02-18 09:12:01,215 INFO  [auth.google] Starting OAuth flow with Google
+2025-02-18 09:12:02,487 INFO  [auth.google] OAuth success
+2025-02-18 09:12:02,488 DEBUG [auth.google] Access token issued
+2025-02-18 09:12:02,488 DEBUG [auth.google] Google account email=j.baptiste@gmail.com
+
+2025-02-18 09:12:02,491 INFO  [audio.upload] file_name=meeting_request.m4a size=824312 bytes
+2025-02-18 09:12:03,902 INFO  [transcription.whisper] Transcription completed duration=38s
+2025-02-18 09:12:03,903 DEBUG [transcription.whisper] text="Ajoute un rendez-vous demain à 14h avec le dentiste"
+
+2025-02-18 09:12:03,905 INFO  [llm.request] Sending transcription to LLM
+2025-02-18 09:12:04,312 DEBUG [llm.response] intent=CREATE_EVENT date=2025-02-19 time=14:00 title="Dentiste"
+
+2025-02-18 09:12:04,315 INFO  [calendar.service] Fetching calendar list
+2025-02-18 09:12:04,521 DEBUG [calendar.service] calendar_id=primary owner=j.baptiste@gmail.com
+
+2025-02-18 09:12:04,524 INFO  [calendar.service] Selected calendar_id=primary
+2025-02-18 09:12:04,529 INFO  [calendar.service] Creating event
+2025-02-18 09:12:04,784 INFO  [calendar.service] Event created successfully event_id=evt_8392
+2025-02-18 09:12:04,785 INFO  [api.response] request_id=REQ-9f12a status=200 message="Event created"
+
+--------------------------------------------------------------------------------
+
+2025-02-18 09:14:56,102 INFO  [api.request] request_id=REQ-a7c81 user_id=usr_42 device=macbook
+2025-02-18 09:14:56,103 INFO  [auth.google] Starting OAuth flow with Google
+2025-02-18 09:14:57,411 INFO  [auth.google] OAuth success
+2025-02-18 09:14:57,412 DEBUG [auth.google] Google account email=j.baptiste@company.com
+
+2025-02-18 09:14:57,415 INFO  [audio.upload] file_name=meeting_request.wav size=642901 bytes
+2025-02-18 09:14:58,932 INFO  [transcription.whisper] Transcription completed duration=36s
+2025-02-18 09:14:58,933 DEBUG [transcription.whisper] text="Ajoute un rendez-vous demain à 14h avec le dentiste"
+
+2025-02-18 09:14:58,935 INFO  [llm.request] Sending transcription to LLM
+2025-02-18 09:14:59,288 DEBUG [llm.response] intent=CREATE_EVENT date=2025-02-19 time=14:00 title="Dentiste"
+
+2025-02-18 09:14:59,291 INFO  [calendar.service] Fetching calendar list
+2025-02-18 09:14:59,512 DEBUG [calendar.service] calendar_id=primary owner=j.baptiste@company.com
+
+2025-02-18 09:14:59,514 INFO  [calendar.service] Selected calendar_id=primary
+2025-02-18 09:14:59,519 INFO  [calendar.service] Creating event
+2025-02-18 09:14:59,771 INFO  [calendar.service] Event created successfully event_id=evt_8471
+2025-02-18 09:14:59,772 INFO  [api.response] request_id=REQ-a7c81 status=200 message="Event created"
