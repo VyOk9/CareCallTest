@@ -174,7 +174,7 @@ audio_file_uploader = st.file_uploader("Upload an audio file")
 
 if audio_file_uploader:
     audio_bytes = audio_file_uploader.getvalue()
-    file_sig = hashlib.sha256(audio_bytes).hexdigest()
+    file_sig = f"{selected_calendar_id}:{hashlib.sha256(audio_bytes).hexdigest()}"
 
     if st.session_state["processed_sig"] != file_sig:
         workflow_placeholder = st.empty()
